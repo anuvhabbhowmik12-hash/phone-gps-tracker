@@ -7,13 +7,12 @@ import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.view.View;
-import android.widget.Button;
-import android.widget.LinearLayout;
-import android.widget.TextView;
+import android.widget.*;
 
 public class MainActivity extends Activity {
 
     private static final int PERMISSION_REQUEST = 100;
+    private EditText keyInput;
     private TextView status;
 
     @Override
@@ -22,15 +21,26 @@ public class MainActivity extends Activity {
 
         LinearLayout layout = new LinearLayout(this);
         layout.setOrientation(LinearLayout.VERTICAL);
-        layout.setPadding(30, 50, 30, 30);
+        layout.setPadding(30, 40, 30, 30);
 
         TextView title = new TextView(this);
         title.setText("PHONE GPS TRACKER");
-        title.setTextSize(24);
+        title.setTextSize(25);
 
-        status = new TextView(this);
-        status.setText("\nTracking is stopped.");
-        status.setTextSize(17);
+        TextView info = new TextView(this);
+        info.setText("\nThingSpeak Write API Key:");
+
+        keyInput = new EditText(this);
+        keyInput.setHint("Enter your Write API Key");
+
+        String savedKey = getSharedPreferences(
+            "TrackerSettings", MODE_PRIVATE
+        ).getString("write_key", "");
+
+        keyInput.setText(savedKey);
+
+        Button save = new Button(this);
+        save.setText("SAVE API KEY");
 
         Button start = new Button(this);
         start.setText("START TRACKING");
@@ -38,18 +48,40 @@ public class MainActivity extends Activity {
         Button stop = new Button(this);
         stop.setText("STOP TRACKING");
 
+        status = new TextView(this);
+        status.setText("\nTracking is stopped.");
+        status.setTextSize(17);
+
         layout.addView(title);
-        layout.addView(status);
+        layout.addView(info);
+        layout.addView(keyInput);
+        layout.addView(save);
         layout.addView(start);
         layout.addView(stop);
+        layout.addView(status);
 
         setContentView(layout);
+
+        save.setOnClickListener(v -> {
+            String key = keyInput.getText().toString().trim();
+
+            if (key.isEmpty()) {
+                status.setText("Please enter your Write API Key.");
+                return;
+            }
+
+            getSharedPreferences(
+                "TrackerSettings", MODE_PRIVATE
+            ).edit().putString("write_key", key).apply();
+
+            status.setText("API Key saved on this phone.");
+        });
 
         start.setOnClickListener(v -> checkPermissions());
 
         stop.setOnClickListener(v -> {
             stopService(new Intent(this, LocationService.class));
-            status.setText("\nTracking stopped.");
+            status.setText("Tracking stopped.");
         });
     }
 
@@ -57,15 +89,13 @@ public class MainActivity extends Activity {
         if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION)
                 != PackageManager.PERMISSION_GRANTED) {
 
-            if (Build.VERSION.SDK_INT >= 23) {
-                requestPermissions(
-                    new String[]{
-                        Manifest.permission.ACCESS_FINE_LOCATION,
-                        Manifest.permission.ACCESS_COARSE_LOCATION
-                    },
-                    PERMISSION_REQUEST
-                );
-            }
+            requestPermissions(
+                new String[]{
+                    Manifest.permission.ACCESS_FINE_LOCATION,
+                    Manifest.permission.ACCESS_COARSE_LOCATION
+                },
+                PERMISSION_REQUEST
+            );
             return;
         }
 
@@ -74,25 +104,35 @@ public class MainActivity extends Activity {
 
     @Override
     public void onRequestPermissionsResult(
-            int requestCode,
-            String[] permissions,
-            int[] grantResults) {
-
+        int requestCode,
+        String[] permissions,
+        int[] grantResults
+    ) {
         super.onRequestPermissionsResult(
-            requestCode, permissions, grantResults);
+            requestCode, permissions, grantResults
+        );
 
         if (requestCode == PERMISSION_REQUEST) {
             if (checkSelfPermission(
-                    Manifest.permission.ACCESS_FINE_LOCATION)
-                    == PackageManager.PERMISSION_GRANTED) {
+                Manifest.permission.ACCESS_FINE_LOCATION
+            ) == PackageManager.PERMISSION_GRANTED) {
                 startTracking();
             } else {
-                status.setText("\nLocation permission is required.");
+                status.setText("Location permission is required.");
             }
         }
     }
 
     private void startTracking() {
+        String key = getSharedPreferences(
+            "TrackerSettings", MODE_PRIVATE
+        ).getString("write_key", "");
+
+        if (key.isEmpty()) {
+            status.setText("Save your Write API Key first.");
+            return;
+        }
+
         Intent intent = new Intent(this, LocationService.class);
 
         if (Build.VERSION.SDK_INT >= 26) {
@@ -101,6 +141,6 @@ public class MainActivity extends Activity {
             startService(intent);
         }
 
-        status.setText("\nStarting GPS service...");
+        status.setText("GPS tracking service started.");
     }
 }
