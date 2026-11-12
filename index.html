@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Phone GPS Sender</title>
+<style>
+body {
+  background: #101820;
+  color: white;
+  font-family: Arial;
+  text-align: center;
+  padding: 25px;
+}
+input, button {
+  padding: 12px;
+  margin: 8px;
+  width: 90%;
+  box-sizing: border-box;
+}
+button {
+  background: #00c98d;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+}
+</style>
+</head>
+
+<body>
+
+<h2>PHONE GPS SENDER</h2>
+
+<p>Channel: 3576920</p>
+
+<input
+  type="password"
+  id="writeKey"
+  placeholder="Enter ThingSpeak Write API Key"
+/>
+
+<button onclick="startTracking()">START TRACKING</button>
+
+<p id="status">Waiting to start...</p>
+<p id="coords"></p>
+
+<script>
+
+let timer = null;
+
+function startTracking() {
+
+  const key = document.getElementById("writeKey").value.trim();
+
+  if (!key) {
+    alert("Enter your Write API Key");
+    return;
+  }
+
+  if (!navigator.geolocation) {
+    alert("Location is not supported by this browser");
+    return;
+  }
+
+  document.getElementById("status").innerText =
+    "Requesting location permission...";
+
+  if (timer) clearInterval(timer);
+
+  sendLocation();
+
+  timer = setInterval(sendLocation, 20000);
+}
+
+function sendLocation() {
+
+  const key = document.getElementById("writeKey").value.trim();
+
+  navigator.geolocation.getCurrentPosition(
+
+    function(position) {
+
+      const lat = position.coords.latitude;
+      const lon = position.coords.longitude;
+
+      document.getElementById("coords").innerText =
+        "Latitude: " + lat.toFixed(6) +
+        "\nLongitude: " + lon.toFixed(6);
+
+      document.getElementById("status").innerText =
+        "Sending location...";
+
+      const url =
+        "https://api.thingspeak.com/update?api_key=" +
+        encodeURIComponent(key) +
+        "&field1=" + encodeURIComponent(lat) +
+        "&field2=" + encodeURIComponent(lon) +
+        "&t=" + Date.now();
+
+      fetch(url, {
+        method: "GET",
+        mode: "no-cors",
+        cache: "no-store"
+      })
+      .then(function() {
+        document.getElementById("status").innerText =
+          "Location update request sent";
+      })
+      .catch(function() {
+        document.getElementById("status").innerText =
+          "Network error. Check internet.";
+      });
+
+    },
+
+    function(error) {
+
+      document.getElementById("status").innerText =
+        "GPS error: " + error.message;
+
+    },
+
+    {
+      enableHighAccuracy: true,
+      timeout: 15000,
+      maximumAge: 5000
+    }
+
+  );
+}
+
+</script>
+
+</body>
+</html>
